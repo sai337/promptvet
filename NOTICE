@@ -1,0 +1,10 @@
+promptvet
+Copyright 2026 Sai (github.com/sai337)
+
+Licensed under the Apache License, Version 2.0 (see LICENSE).
+
+Third-party data:
+- Audit results and the sample skill pack are derived from prompts.chat
+  (formerly Awesome ChatGPT Prompts, https://github.com/f/prompts.chat).
+  Prompt content is dedicated to the public domain under CC0 1.0 Universal.
+  promptvet is not affiliated with or endorsed by prompts.chat.

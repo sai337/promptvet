@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+promptvet-out/
+public/report.html
+public/summary.json
+.vercel
+*.egg-info/
+dist/
+build/
+.terraform/
+*.tfstate*

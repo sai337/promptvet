@@ -1,0 +1,10 @@
+# Scanner needs no egress at runtime (rules are local). Deny all egress except DNS.
+# If you enable the LLM judge, add an egress rule to your AI gateway only.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: {name: promptvet}
+spec:
+  podSelector: {matchLabels: {app: promptvet}}
+  policyTypes: [Ingress, Egress]
+  ingress: [{ports: [{port: 8080}]}]
+  egress: [{ports: [{port: 53, protocol: UDP}, {port: 53, protocol: TCP}]}]
