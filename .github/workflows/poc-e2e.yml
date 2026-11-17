@@ -1,0 +1,19 @@
+name: poc-e2e
+# Vercel's Git integration posts a deployment_status for every preview/production deploy.
+on:
+  deployment_status: {}
+  workflow_dispatch:
+    inputs: {base_url: {description: "URL to test", default: "https://promptvet.vercel.app"}}
+permissions: {contents: read}
+jobs:
+  e2e:
+    if: github.event_name == 'workflow_dispatch' || github.event.deployment_status.state == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.13"}
+      - run: pip install pytest
+      - run: python -m pytest -q tests/e2e
+        env:
+          BASE_URL: ${{ github.event.inputs.base_url || github.event.deployment_status.environment_url || github.event.deployment_status.target_url }}
