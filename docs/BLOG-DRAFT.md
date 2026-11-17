@@ -16,4 +16,4 @@
 
 **Lesson 3: put the gate where prompts change.** The same engine runs as a CLI, a CI check with SARIF, a serverless POC and a Kubernetes service with no egress.
 
-**Try it.** `pip install git+https://github.com/sai337/promptvet` · live demo: <POC URL>.
+**Try it.** `pip install git+https://github.com/sai337/promptvet` · live demo: https://promptvet.vercel.app.

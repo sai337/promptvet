@@ -70,7 +70,7 @@ risk_rules:
 | Path | How | Status |
 |---|---|---|
 | Local | `make test eval serve` | ✅ tested |
-| POC | Vercel: static UI + Python function `api/scan.py`; the build renders the audit (`vercel.json`) | see `docs/POC.md` |
+| POC | [promptvet.vercel.app](https://promptvet.vercel.app) on Vercel: static UI + Python function `api/scan.py`; the build renders the audit (`vercel.json`) | ✅ live, e2e passing in CI |
 | Enterprise | Distroless non-root image → EKS (`infra/eks`): HPA, PDB, NetworkPolicy with no egress, internal ALB; `eks-e2e.yml` runs apply → e2e → destroy through GitHub OIDC | manifests validated; cluster run needs AWS access |
 
 The same e2e suite (`tests/e2e`) runs against every target: `BASE_URL=... pytest tests/e2e`.
