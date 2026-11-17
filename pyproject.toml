@@ -28,3 +28,8 @@ packages = ["promptvet"]
 
 [tool.ruff]
 line-length = 130
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = ["E501", "E741"]
+per-file-ignores = { "scripts/*" = ["E402"], "evals/*" = ["E402"], "api/*" = ["E402", "N801"] }

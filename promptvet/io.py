@@ -55,7 +55,7 @@ def load_dir(path: str) -> list[PromptRecord]:
             continue
         text = p.read_text(encoding="utf-8", errors="replace")
         title = p.parent.name if p.name == "SKILL.md" else p.stem
-        m = re.search(r"^name:\s*(.+)$", text, re.M)
+        m = re.search(r"^name:\s*(.+)$", text, re.MULTILINE)
         if m:
             title = m.group(1).strip()
         out.append(PromptRecord(f"{len(out):05d}-{slug(title, 32)}", title, text, str(p)))
@@ -115,7 +115,7 @@ def write_sarif(results: list[Result], path: str, source: str) -> None:
 
 
 def _description(rec: PromptRecord, res: Result) -> str:
-    t = re.sub(r"^(act as|i want you to act as)\s+(an?\s+)?", "", rec.title.strip().rstrip("."), flags=re.I)
+    t = re.sub(r"^(act as|i want you to act as)\s+(an?\s+)?", "", rec.title.strip().rstrip("."), flags=re.IGNORECASE)
     cat = res.category.replace("_", " ").replace("ai", "AI")
     return (f"Use when the user asks for {t[:1].lower() + t[1:]} or a closely related {cat} task. "
             f"Vetted prompt from a CC0 library (trust {res.trust}/100).")[:1000]

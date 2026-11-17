@@ -1,0 +1,24 @@
+name: eks-e2e
+on: {workflow_dispatch: {}}
+permissions: {id-token: write, contents: read}
+concurrency: eks-e2e
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    environment: eks-e2e        # add a required reviewer on this environment = manual approval
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with: {role-to-assume: "${{ secrets.AWS_E2E_ROLE_ARN }}", aws-region: us-west-2}
+      - uses: hashicorp/setup-terraform@v3
+      - run: cd infra/eks/terraform && terraform init && terraform apply -auto-approve
+      - run: |
+          aws eks update-kubeconfig --name promptvet-e2e --region us-west-2
+          cd infra/eks/k8s/base && kustomize edit set image promptvet=ghcr.io/${{ github.repository }}:latest || true
+          kubectl apply -k infra/eks/k8s/base 2>/dev/null || kubectl apply -k .
+          kubectl -n promptvet rollout status deploy/promptvet --timeout=300s
+          kubectl -n promptvet port-forward svc/promptvet 8080:80 & sleep 5
+          pip install pytest && BASE_URL=http://localhost:8080 python -m pytest -q tests/e2e
+      - if: always()
+        run: cd infra/eks/terraform && terraform destroy -auto-approve

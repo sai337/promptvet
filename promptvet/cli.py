@@ -13,7 +13,8 @@ import json
 import sys
 from pathlib import Path
 
-from . import __version__, judge as judge_mod
+from . import __version__
+from . import judge as judge_mod
 from .core import PromptRecord, RuleSet, default_ruleset, scan, scan_one, summarize
 from .io import load, write_approved_csv, write_json, write_sarif, write_skills
 from .report import render_html

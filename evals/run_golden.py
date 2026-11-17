@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from promptvet.core import PromptRecord, scan_one  # noqa: E402
+from promptvet.core import PromptRecord, scan_one
 
 GATE = {"recall": 0.95, "precision": 0.95, "category_accuracy": 0.95}
 

@@ -62,6 +62,8 @@ def render_html(results: list[Result], summary: dict, title: str = "Prompt libra
     rows = [[r.id, r.title, r.tier, r.trust, r.quality, r.category,
              ", ".join(sorted({f.category.replace('_', ' ') for f in r.findings})), 1 if r.duplicate_of else 0]
             for r in sorted(results, key=lambda r: ({"blocked": 0, "review": 1, "approved": 2}[r.tier], -r.trust))]
-    safe = lambda o: json.dumps(o).replace("</", "<\\/")
+    def safe(o):
+        return json.dumps(o).replace("</", "<\\/")
+
     return (_TEMPLATE.replace("__TITLE__", html.escape(title)).replace("__SUB__", html.escape(subtitle))
             .replace("__SUMMARY__", safe(summary)).replace("__ROWS__", safe(rows)))

@@ -1,0 +1,43 @@
+name: ci
+on: [push, pull_request]
+permissions: {contents: read, security-events: write, packages: write}
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy: {matrix: {python: ["3.10", "3.13"]}}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "${{ matrix.python }}"}
+      - run: pip install pytest pyyaml ruff
+      - run: ruff check promptvet tests evals scripts
+      - run: python -m pytest -q tests
+      - run: python evals/run_golden.py
+  audit:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.13"}
+      - run: |
+          curl -sSL -o prompts.csv https://raw.githubusercontent.com/f/prompts.chat/36c1131e85e4ff08ce4d908f0e907e3dbdd019a5/prompts.csv
+          python -m promptvet scan prompts.csv --out out --skills 25 --source-name "prompts.chat (CC0)"
+      - uses: github/codeql-action/upload-sarif@v3
+        with: {sarif_file: out/findings.sarif, category: promptvet-prompts-chat}
+      - uses: actions/upload-artifact@v4
+        with: {name: audit, path: out}
+  image:
+    needs: test
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with: {registry: ghcr.io, username: "${{ github.actor }}", password: "${{ secrets.GITHUB_TOKEN }}"}
+      - run: |
+          docker build -t ghcr.io/${{ github.repository }}:${{ github.sha }} -t ghcr.io/${{ github.repository }}:latest .
+          docker run -d -p 8080:8080 --name pv ghcr.io/${{ github.repository }}:${{ github.sha }}
+          for i in $(seq 1 20); do curl -sf localhost:8080/healthz && break; sleep 1; done
+          pip install pytest && BASE_URL=http://localhost:8080 python -m pytest -q tests/e2e
+          docker push --all-tags ghcr.io/${{ github.repository }}

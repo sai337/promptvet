@@ -1,0 +1,17 @@
+name: evals-nightly
+on:
+  schedule: [{cron: "17 9 * * *"}]
+  workflow_dispatch: {}
+permissions: {contents: write}
+jobs:
+  golden:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.13"}
+      - run: python evals/run_golden.py
+      - run: |
+          git config user.name promptvet-bot && git config user.email promptvet-bot@users.noreply.github.com
+          git add evals/results && git commit -m "evals: nightly golden results" || true
+          git push || true

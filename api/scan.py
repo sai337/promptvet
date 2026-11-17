@@ -5,12 +5,12 @@ import sys
 from http.server import BaseHTTPRequestHandler
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from promptvet.api import MAX_CHARS, MAX_ITEMS, handle  # noqa: E402
+from promptvet.api import MAX_CHARS, MAX_ITEMS, handle
 
 MAX_BODY = MAX_CHARS * MAX_ITEMS // 10
 
 
-class handler(BaseHTTPRequestHandler):  # noqa: N801 (Vercel requires this name)
+class handler(BaseHTTPRequestHandler):
     def _send(self, code, obj):
         body = json.dumps(obj).encode()
         self.send_response(code)
@@ -19,7 +19,7 @@ class handler(BaseHTTPRequestHandler):  # noqa: N801 (Vercel requires this name)
         self.end_headers()
         self.wfile.write(body)
 
-    def do_POST(self):  # noqa: N802
+    def do_POST(self):
         n = int(self.headers.get("Content-Length") or 0)
         if n > MAX_BODY:
             return self._send(413, {"error": "body too large"})
@@ -30,5 +30,5 @@ class handler(BaseHTTPRequestHandler):  # noqa: N801 (Vercel requires this name)
         code, out = handle(payload)
         self._send(code, out)
 
-    def do_GET(self):  # noqa: N802
+    def do_GET(self):
         self._send(405, {"error": "POST a JSON body: {\"prompt\": \"...\"}"})

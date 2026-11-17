@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import json
 import re
-from dataclasses import dataclass, field, asdict
-from typing import Iterable
+from collections.abc import Iterable
+from dataclasses import asdict, dataclass, field
 
 from . import rules as default_rules
 
@@ -62,21 +62,21 @@ class RuleSet:
         for r in risk_rules or default_rules.RISK_RULES:
             self.risk_rules.append({
                 **r,
-                "_re": re.compile(r["pattern"], re.I),
-                "_unless": re.compile(r["unless"], re.I) if r.get("unless") else None,
+                "_re": re.compile(r["pattern"], re.IGNORECASE),
+                "_unless": re.compile(r["unless"], re.IGNORECASE) if r.get("unless") else None,
             })
-        self.quality = [(i, w, re.compile(p, re.I), label)
+        self.quality = [(i, w, re.compile(p, re.IGNORECASE), label)
                         for i, w, p, label in (quality_signals or default_rules.QUALITY_SIGNALS)]
-        self.categories = {k: re.compile(v, re.I) for k, v in (categories or default_rules.CATEGORIES).items()}
-        self.defensive = re.compile(default_rules.DEFENSIVE_CONTEXT, re.I)
-        self.negation = re.compile(default_rules.NEGATION_NEAR, re.I)
-        self.placeholder = re.compile(default_rules.SECRET_PLACEHOLDER, re.I)
-        self.genre = re.compile(default_rules.DEFENSIVE_GENRE, re.I)
-        self.visual = re.compile(default_rules.VISUAL_DETECT, re.I)
-        self.visual_quality = [(i, w, re.compile(p, re.I), label) for i, w, p, label in default_rules.VISUAL_SIGNALS]
+        self.categories = {k: re.compile(v, re.IGNORECASE) for k, v in (categories or default_rules.CATEGORIES).items()}
+        self.defensive = re.compile(default_rules.DEFENSIVE_CONTEXT, re.IGNORECASE)
+        self.negation = re.compile(default_rules.NEGATION_NEAR, re.IGNORECASE)
+        self.placeholder = re.compile(default_rules.SECRET_PLACEHOLDER, re.IGNORECASE)
+        self.genre = re.compile(default_rules.DEFENSIVE_GENRE, re.IGNORECASE)
+        self.visual = re.compile(default_rules.VISUAL_DETECT, re.IGNORECASE)
+        self.visual_quality = [(i, w, re.compile(p, re.IGNORECASE), label) for i, w, p, label in default_rules.VISUAL_SIGNALS]
 
     @classmethod
-    def from_file(cls, path: str) -> "RuleSet":
+    def from_file(cls, path: str) -> RuleSet:
         with open(path, encoding="utf-8") as f:
             if path.endswith((".yaml", ".yml")):
                 import yaml  # optional dependency

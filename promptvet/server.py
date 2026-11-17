@@ -23,7 +23,7 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
-    def do_GET(self):  # noqa: N802
+    def do_GET(self):
         if self.path in ("/healthz", "/readyz"):
             return self._send(200, b'{"ok":true}')
         name = {"/": "index.html", "/report": "report.html", "/report.html": "report.html",
@@ -34,7 +34,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, f.read_bytes(), ctype)
         self._send(404, b'{"error":"not found"}')
 
-    def do_POST(self):  # noqa: N802
+    def do_POST(self):
         if self.path != "/api/scan":
             return self._send(404, b'{"error":"not found"}')
         n = int(self.headers.get("Content-Length") or 0)

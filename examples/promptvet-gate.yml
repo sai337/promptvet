@@ -1,0 +1,16 @@
+# Drop into ANY prompt/skill repo as .github/workflows/promptvet.yml to gate merges.
+name: promptvet
+on: [pull_request]
+permissions: {contents: read, security-events: write}
+jobs:
+  vet:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.13"}
+      - run: pip install "git+https://github.com/sai337/promptvet"
+      - run: promptvet scan skills/ --out out --fail-on blocked
+      - if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with: {sarif_file: out/findings.sarif}

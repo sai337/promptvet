@@ -11,10 +11,10 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
-from promptvet import __version__  # noqa: E402
-from promptvet.core import scan, summarize  # noqa: E402
-from promptvet.io import load  # noqa: E402
-from promptvet.report import render_html  # noqa: E402
+from promptvet import __version__
+from promptvet.core import scan, summarize
+from promptvet.io import load
+from promptvet.report import render_html
 
 SHA = os.getenv("PROMPTS_CHAT_SHA", "36c1131e85e4ff08ce4d908f0e907e3dbdd019a5")
 URL = f"https://raw.githubusercontent.com/f/prompts.chat/{SHA}/prompts.csv"
