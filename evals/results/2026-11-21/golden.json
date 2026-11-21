@@ -1,0 +1,13 @@
+{
+ "n": 72,
+ "tp": 34,
+ "fp": 0,
+ "fn": 0,
+ "tn": 30,
+ "recall": 1.0,
+ "precision": 1.0,
+ "category_accuracy": 1.0,
+ "false_blocks": 0,
+ "misses": [],
+ "pass": true
+}
