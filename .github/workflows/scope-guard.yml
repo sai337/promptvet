@@ -1,0 +1,9 @@
+# Agency guard: agent branches stay inside their scope; every commit is sai337 with no AI trailers.
+# Logic lives in sai337/agency (agency.yaml + agency/core.py).
+name: scope-guard
+on:
+  pull_request:
+permissions: {contents: read}
+jobs:
+  guard:
+    uses: sai337/agency/.github/workflows/scope-guard.yml@main
