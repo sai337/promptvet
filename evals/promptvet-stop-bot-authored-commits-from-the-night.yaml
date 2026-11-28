@@ -1,0 +1,168 @@
+# Eval spec for one story (AILC inception). Read by the Judge, not by CI:
+# nothing in ci.yml, pytest (tests/ only), ruff (*.py only) or evals/run_golden.py globs this file.
+# Run each `how` as one script with `bash -eo pipefail` from the repo root of a checkout of the
+# PR head (committed, clean tree) with origin/main fetched; a check passes iff it exits 0.
+# Replace <PR> with the PR number. Checks were dry-run against the proposed workflow (all pass)
+# and against the current one (no-bot-git-ops, contents-read-only, no-swallowed-failures and
+# results-in-job-summary fail, as they should).
+# W below means .github/workflows/evals.yml.
+story: promptvet-stop-bot-authored-commits-from-the-night
+repo: sai337/promptvet
+title: Stop bot-authored commits from the nightly eval workflow
+kind: maintenance
+priority: P1
+spec_doc: docs/stories/promptvet-stop-bot-authored-commits-from-the-night.md
+
+acceptance:
+  - id: AC1-no-bot-commits
+    text: >-
+      The nightly workflow (W) no longer sets a git identity, stages, commits or pushes anything,
+      and contains no reference to promptvet-bot. A run of it leaves every branch head unchanged.
+  - id: AC2-read-only-token
+    text: >-
+      W declares workflow-level permissions of exactly contents: read, no job overrides them, and
+      checkout does not persist the token (persist-credentials: false).
+  - id: AC3-results-visible
+    text: >-
+      Every run, pass or fail, writes the golden.json metrics (or an explicit "no results" line when
+      the gate crashed before writing them) to the run's job summary via $GITHUB_STEP_SUMMARY.
+      No new third-party action is added; the only actions used stay actions/checkout@v4 and
+      actions/setup-python@v5.
+  - id: AC4-failures-surface
+    text: >-
+      Nothing in W swallows a failure: no "|| true", no "|| :", no continue-on-error, no set +e.
+      The gate step is the bare command `python evals/run_golden.py`, so a gate miss (exit 1) fails
+      the job. (Today the "|| true" sits on the commit and push lines, which hides push rejections;
+      the gate step itself must stay unguarded.)
+  - id: AC5-clean-pr
+    text: >-
+      The PR changes only W, docs/EVALS.md and this story's two planning files; CI and scope-guard
+      are green; every PR commit is authored by sai337 <sai.devop@gmail.com> with no trailers; the
+      privacy check reports nothing new compared with main.
+  - id: AC6-history-preserved
+    text: >-
+      Existing promptvet-bot commits on main and the evals/results/<date>/ directories are left as
+      they are: no deletion, no rewrite, no force-push.
+
+checks:
+  - id: no-bot-git-ops
+    weight: 2.0
+    must_pass: true
+    how: |
+      ! grep -nE 'git +(config|add|commit|push)|promptvet-bot|user\.(name|email)' .github/workflows/evals.yml
+
+  - id: contents-read-only
+    weight: 1.5
+    must_pass: true
+    how: |
+      python3 -c 'import yaml; d=yaml.safe_load(open(".github/workflows/evals.yml")); assert d.get("permissions")=={"contents":"read"}, d.get("permissions"); bad=[n for n,j in d["jobs"].items() if "permissions" in j and j["permissions"]!={"contents":"read"}]; assert not bad, bad; co=[s for j in d["jobs"].values() for s in j["steps"] if str(s.get("uses","")).startswith("actions/checkout@")]; assert co and all((s.get("with") or {}).get("persist-credentials") is False for s in co), co; print("contents-read-only: ok")'
+
+  - id: no-swallowed-failures
+    weight: 1.0
+    must_pass: true
+    how: |
+      ! grep -nE '\|\| *(true|:)|continue-on-error|set \+e' .github/workflows/evals.yml &&
+      python3 -c 'import yaml; d=yaml.safe_load(open(".github/workflows/evals.yml")); st=[s for j in d["jobs"].values() for s in j["steps"]]; g=[s for s in st if str(s.get("run","")).strip()=="python evals/run_golden.py"]; assert len(g)==1 and "if" not in g[0], g; print("no-swallowed-failures: ok")'
+
+  - id: results-in-job-summary
+    weight: 1.5
+    must_pass: true
+    how: |
+      # (a) only the two existing actions are used
+      test "$(grep -oE 'uses: *[^ ]+' .github/workflows/evals.yml | awk '{print $2}' | sort -u | tr '\n' ' ')" = "actions/checkout@v4 actions/setup-python@v5 "
+      # (b) simulate the summary step for a passing run and for a crashed run, in a throwaway worktree
+      R=$(pwd); T=$(mktemp -d); git worktree add -q --detach "$T/wt" HEAD
+      trap 'git -C "$R" worktree remove --force "$T/wt"' EXIT
+      cd "$T/wt"
+      python3 evals/run_golden.py >/dev/null
+      python3 - <<'PY'
+      import os, shutil, subprocess, tempfile, datetime, yaml
+      d = yaml.safe_load(open(".github/workflows/evals.yml"))
+      st = [s for j in d["jobs"].values() for s in j["steps"]]
+      s = [x for x in st if "GITHUB_STEP_SUMMARY" in str(x.get("run", ""))]
+      assert len(s) == 1, "exactly one step writes the job summary"
+      assert str(s[0].get("if", "")).replace("${{", "").replace("}}", "").strip() == "always()", s[0].get("if")
+      def run():
+          out = tempfile.mktemp()
+          subprocess.run(["bash", "-e", "-c", s[0]["run"]], check=True, env={**os.environ, "GITHUB_STEP_SUMMARY": out})
+          return open(out).read()
+      ok = run()
+      assert '"pass": true' in ok and '"recall"' in ok and "```json" in ok, ok
+      shutil.rmtree("evals/results/" + datetime.date.today().isoformat())
+      crashed = run()
+      assert "golden.json" in crashed and '"recall"' not in crashed, crashed
+      print("results-in-job-summary: ok")
+      PY
+
+  - id: dispatch-run-clean
+    weight: 1.0
+    must_pass: false   # needs actions:write on the repo; if the Judge lacks it, the human runs it and pastes the run URL
+    how: |
+      BR=$(gh pr view <PR> -R sai337/promptvet --json headRefName -q .headRefName)
+      before=$(git ls-remote --heads https://github.com/sai337/promptvet main "$BR")
+      gh workflow run evals-nightly -R sai337/promptvet --ref "$BR"; sleep 15
+      id=$(gh run list -R sai337/promptvet -w evals-nightly -b "$BR" -e workflow_dispatch -L 1 --json databaseId -q '.[0].databaseId')
+      gh run watch "$id" -R sai337/promptvet --exit-status
+      gh run view "$id" -R sai337/promptvet --json jobs -q '.jobs[].steps[] | select(.name=="Golden results to job summary") | .conclusion' | grep -qx success
+      test "$before" = "$(git ls-remote --heads https://github.com/sai337/promptvet main "$BR")"
+      # then open the run page and confirm the summary shows the golden.json block
+
+  - id: ci-and-scope-guard-green
+    weight: 1.0
+    must_pass: true
+    how: |
+      gh pr checks <PR> -R sai337/promptvet --watch --fail-fast
+      gh pr checks <PR> -R sai337/promptvet --json name -q '.[].name' | grep -qi guard
+      test "$(gh api repos/sai337/promptvet/pulls/<PR>/commits --paginate -q '.[] | "\(.commit.author.name) <\(.commit.author.email)>"' | sort -u)" = "sai337 <sai.devop@gmail.com>"
+      ! gh api repos/sai337/promptvet/pulls/<PR>/commits --paginate -q '.[].commit.message' | grep -qiE 'co-authored-by|claude-session|generated with|anthropic\.com'
+
+  - id: privacy-clean
+    weight: 0.5
+    must_pass: true
+    how: |
+      # main already has known findings (a fake key fixture in the golden set, old commit trailers);
+      # the PR must add nothing new to the file scan.
+      P=/home/claude/agency/scripts/check_private.sh; T=$(mktemp -d)
+      git worktree add -q --detach "$T/main" origin/main
+      (cd "$T/main" && sed '/^cd /d' "$P" | sh) > "$T/main.txt" 2>&1 || true
+      (sed '/^cd /d' "$P" | sh) > "$T/pr.txt" 2>&1 || true
+      git worktree remove --force "$T/main"
+      diff "$T/main.txt" "$T/pr.txt" && echo "privacy-clean: nothing new"
+
+  - id: history-preserved
+    weight: 0.5
+    must_pass: true
+    how: |
+      git merge-base --is-ancestor 56ce265 HEAD && git merge-base --is-ancestor 4fc7593 HEAD
+      test -z "$(git diff --diff-filter=DR --name-only origin/main...HEAD -- evals/results)"
+      test "$(git log origin/main --author=promptvet-bot --oneline | wc -l)" -ge 11
+      test "$(gh api 'repos/sai337/promptvet/activity?ref=refs/heads/main&activity_type=force_push' -q 'length')" = 0
+
+  - id: diff-scope
+    weight: 0.5
+    must_pass: true
+    how: |
+      git diff --name-only origin/main...HEAD | grep -qx '.github/workflows/evals.yml'
+      test -z "$(git diff --name-only origin/main...HEAD | grep -vxE '\.github/workflows/evals\.yml|docs/EVALS\.md|evals/promptvet-stop-bot-authored-commits-from-the-night\.yaml|docs/stories/promptvet-stop-bot-authored-commits-from-the-night\.md')"
+
+  - id: docs-nightly-updated
+    weight: 0.5
+    must_pass: false
+    how: |
+      sed -n '/^## Nightly/,$p' docs/EVALS.md | grep -qi 'job summary'
+
+out_of_scope:
+  - Rewriting, squashing or reverting the existing promptvet-bot commits on main (destructive; history stays).
+  - Deleting or moving evals/results/ or any file in it (kept as the pre-change record; nothing is deleted).
+  - Changing evals/run_golden.py, the golden dataset or the gate thresholds.
+  - Editing ci.yml, scope-guard.yml or any other workflow, and pinning existing actions to SHAs (separate story).
+  - Adding actions/upload-artifact or any other action (would need a full commit-SHA pin and a vetting pass; separate story).
+  - Branch protection or ruleset changes on main (human settings change, separate story).
+
+human_approval: >-
+  The fix edits .github/workflows/evals.yml, which is on the human-approval list (agents cannot edit workflows),
+  so construction is done by sai337: replace the file with the exact content in the story doc, update the
+  Nightly paragraph of docs/EVALS.md, commit locally as sai337 <sai.devop@gmail.com> with no trailers (a web-UI
+  edit also works but sets committer to GitHub), and open the PR. Optional, also human-only: run
+  `gh workflow disable evals-nightly -R sai337/promptvet` until the PR merges, to stop further bot commits on main,
+  then `gh workflow enable` after merge. Merging remains a human decision.
